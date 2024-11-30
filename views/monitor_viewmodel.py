@@ -1,12 +1,12 @@
 # viewmodels/monitor_viewmodel.py
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty
 from utils import CPUMonitor, MemoryMonitor, GPUMonitor, FPSMonitor
 
 class MonitorViewModel(QObject):
     """모니터링 뷰모델"""
 
     # updateUI 시그널 추가
-    updateUI = pyqtSignal(dict)  # dict 타입의 데이터를 전달하는 시그널
+    updateUI = pyqtSignal('QVariantMap')  # dict 타입의 데이터를 전달하는 시그널
     
     def __init__(self, model, controller):
         super().__init__()
@@ -25,8 +25,11 @@ class MonitorViewModel(QObject):
     def stopMonitoring(self):
         """모니터링 중지"""
         self._controller.stop_monitoring()
+
     def _on_data_changed(self):
         """모델 데이터 변경 시 처리"""
         data = self._model.data
         # QML에 데이터 전달을 위한 처리
+        print(f"[{self.__class__.__name__}] 데이터 업데이트: {data}")
         self.updateUI.emit(data)
+        print(f"[{self.__class__.__name__}] 시그널 발생완료")

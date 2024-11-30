@@ -3,12 +3,19 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
 ApplicationWindow {
+    id: root
     visible: true
     width: 400
     height: 600
     title: "System Monitor"
+    Component.onCompleted: {
+        console.log("Window loaded")
+        console.log("monitorViewModel exists:", monitorViewModel !== undefined)
+        if (monitorViewModel) {
+            console.log("monitorViewModel type:", typeof monitorViewModel)
+        }
+    }
 
-    // 모니터링 데이터 모델
     ListModel {
         id: monitorModel
         ListElement {
@@ -29,7 +36,7 @@ ApplicationWindow {
         }
     }
 
-    // 델리게이트 정의
+
     Component {
         id: monitorDelegate
         Rectangle {
@@ -71,21 +78,31 @@ ApplicationWindow {
         }
     }
 
-    // 데이터 연결
+
     Connections {
-        target: systemMonitor
+        target: monitorViewModel
 
-        function onCpuDataChanged(value) {
-            monitorModel.setProperty(0, "value", value.toFixed(1) + "%")
-        }
+        function onUpdateUI(data) {
+            console.log("data recv:", JSON.stringify(data))
 
-        function onMemoryDataChanged(used, total, percent) {
-            monitorModel.setProperty(1, "value",
-                used.toFixed(1) + " GB / " + total.toFixed(1) + " GB (" + percent.toFixed(1) + "%)")
-        }
-
-        function onFpsDataChanged(value) {
-            monitorModel.setProperty(2, "value", value.toFixed(1) + " FPS")
+            if (data.cpu !== undefined) {
+                monitorModel.setProperty(0, "value", data.cpu.toFixed(1) + "%")
+            }
+            if (data.memory !== undefined) {
+                // Convert bytes to GB
+                let usedGB = (data.memory.used / 1024 / 1024 / 1024).toFixed(1)
+                let totalGB = (data.memory.total / 1024 / 1024 / 1024).toFixed(1)
+                monitorModel.setProperty(1, "value",
+                    usedGB + " GB / " + totalGB + " GB (" +
+                    data.memory.percent.toFixed(1) + "%)")
+            }
+            if (data.fps !== undefined) {
+                monitorModel.setProperty(2, "value", data.fps.toFixed(1) + " FPS")
+            }
+            if (data.gpu !== undefined && data.gpu.length > 0) {
+                monitorModel.setProperty(3, "value", data.gpu[0].load.toFixed(1) + "%")
+            }
         }
     }
 }
+

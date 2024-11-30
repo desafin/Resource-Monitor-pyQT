@@ -2,6 +2,7 @@
 from PyQt5.QtCore import QObject, pyqtSignal
 from utils import CPUMonitor, MemoryMonitor, GPUMonitor, FPSMonitor
 
+
 class MonitorModel(QObject):
     """모니터링 데이터 모델"""
 
@@ -11,14 +12,13 @@ class MonitorModel(QObject):
         super().__init__()
         self._controller = controller
         self._data = {}
-
-        # 컨트롤러의 데이터 변경 시그널 연결
         self._controller.dataChanged.connect(self._update_data)
+        print(f"[{self.__class__.__name__}] 모델이 초기화되었습니다.")
 
     def _update_data(self, new_data):
         """새로운 모니터링 데이터로 업데이트"""
         self._data = new_data
-        # 모델이 변경되었음을 알림
+        print(f"[{self.__class__.__name__}] 데이터 업데이트: {new_data}")
         self.dataChanged.emit()
 
     @property
