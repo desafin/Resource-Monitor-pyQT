@@ -1,6 +1,10 @@
 # models/monitor_model.py
+import logging
+
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtProperty, pyqtSlot, QVariant
 from utils import CPUMonitor, MemoryMonitor, GPUMonitor, FPSMonitor
+
+logger = logging.getLogger(__name__)
 
 
 class MonitorModel(QObject):
@@ -27,7 +31,7 @@ class MonitorModel(QObject):
         try:
             self._monitors['gpu'] = GPUMonitor()
         except ImportError:
-            print(f"[{self.__class__.__name__}] GPU 모니터링을 사용할 수 없습니다.")
+            logger.warning("GPU 모니터링을 사용할 수 없습니다.")
 
         # 내부 상태
         self._cpu = 0.0
@@ -36,7 +40,7 @@ class MonitorModel(QObject):
         self._fps = 0.0
         self._is_monitoring = False
 
-        print(f"[{self.__class__.__name__}] 모델이 초기화되었습니다.")
+        logger.info("모델이 초기화되었습니다.")
 
     # --- Q_PROPERTY 정의 ---
 
@@ -68,7 +72,7 @@ class MonitorModel(QObject):
         if not self._is_monitoring:
             self._is_monitoring = True
             self.isMonitoringChanged.emit()
-            print(f"[{self.__class__.__name__}] 모니터링이 시작되었습니다.")
+            logger.info("모니터링이 시작되었습니다.")
 
     @pyqtSlot()
     def stopMonitoring(self):
@@ -76,50 +80,26 @@ class MonitorModel(QObject):
         if self._is_monitoring:
             self._is_monitoring = False
             self.isMonitoringChanged.emit()
-            print(f"[{self.__class__.__name__}] 모니터링이 중지되었습니다.")
+            logger.info("모니터링이 중지되었습니다.")
+
+    def _measure_and_emit(self, key: str, attr: str, signal) -> None:
+        """단일 모니터를 측정하고 값이 변경된 경우 시그널을 발행합니다."""
+        if key not in self._monitors:
+            return
+        try:
+            new_val = self._monitors[key].measure()
+            if getattr(self, attr) != new_val:
+                setattr(self, attr, new_val)
+                signal.emit()
+        except Exception as e:
+            logger.error("%s 측정 오류: %s", key.upper(), e)
 
     @pyqtSlot()
     def measure(self):
         """모든 모니터를 측정하고 프로퍼티 업데이트"""
         if not self._is_monitoring:
             return
-
-        # CPU 측정
-        if 'cpu' in self._monitors:
-            try:
-                new_cpu = self._monitors['cpu'].measure()
-                if self._cpu != new_cpu:
-                    self._cpu = new_cpu
-                    self.cpuChanged.emit()
-            except Exception as e:
-                print(f"[{self.__class__.__name__}] CPU 측정 오류: {e}")
-
-        # 메모리 측정
-        if 'memory' in self._monitors:
-            try:
-                new_memory = self._monitors['memory'].measure()
-                if self._memory != new_memory:
-                    self._memory = new_memory
-                    self.memoryChanged.emit()
-            except Exception as e:
-                print(f"[{self.__class__.__name__}] 메모리 측정 오류: {e}")
-
-        # GPU 측정
-        if 'gpu' in self._monitors:
-            try:
-                new_gpu = self._monitors['gpu'].measure()
-                if self._gpu != new_gpu:
-                    self._gpu = new_gpu
-                    self.gpuChanged.emit()
-            except Exception as e:
-                print(f"[{self.__class__.__name__}] GPU 측정 오류: {e}")
-
-        # FPS 측정
-        if 'fps' in self._monitors:
-            try:
-                new_fps = self._monitors['fps'].measure()
-                if self._fps != new_fps:
-                    self._fps = new_fps
-                    self.fpsChanged.emit()
-            except Exception as e:
-                print(f"[{self.__class__.__name__}] FPS 측정 오류: {e}")
+        self._measure_and_emit('cpu', '_cpu', self.cpuChanged)
+        self._measure_and_emit('memory', '_memory', self.memoryChanged)
+        self._measure_and_emit('gpu', '_gpu', self.gpuChanged)
+        self._measure_and_emit('fps', '_fps', self.fpsChanged)

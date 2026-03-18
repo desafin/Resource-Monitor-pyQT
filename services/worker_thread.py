@@ -5,7 +5,7 @@
 moveToThread() 패턴을 사용합니다.
 """
 import logging
-from typing import Optional, Any
+from typing import Optional
 
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
@@ -28,7 +28,7 @@ class ProcessWorker(QObject):
     # 프로세스 데이터 수집 완료 시그널
     finished = pyqtSignal(list)
 
-    def __init__(self, parent: Optional[Any] = None) -> None:
+    def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
         self._timer: Optional[QTimer] = None
         self._running: bool = False

@@ -2,7 +2,7 @@
 import logging
 from collections import deque
 
-from PyQt5.QtCore import QObject, QVariant, pyqtSignal, pyqtSlot, pyqtProperty
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,8 @@ class MonitorViewModel(QObject):
         # CPU/메모리 히스토리 (최근 60개 값 유지)
         self._cpu_history: deque[float] = deque(maxlen=60)
         self._memory_history: deque[float] = deque(maxlen=60)
+        self._cpu_history_cache: list[float] = []
+        self._memory_history_cache: list[float] = []
 
         # Model 시그널 연결 - 선언적 데이터 흐름
         self._model.cpuChanged.connect(self._on_cpu_changed)
@@ -69,12 +71,12 @@ class MonitorViewModel(QObject):
     @pyqtProperty(list, notify=cpuHistoryChanged)
     def cpuHistory(self):
         """CPU 사용률 히스토리 (최근 60개 값)를 반환합니다."""
-        return list(self._cpu_history)
+        return self._cpu_history_cache
 
     @pyqtProperty(list, notify=memoryHistoryChanged)
     def memoryHistory(self):
         """메모리 사용률 히스토리 (최근 60개 값)를 반환합니다."""
-        return list(self._memory_history)
+        return self._memory_history_cache
 
     # --- 모니터링 제어 슬롯 ---
 
@@ -95,6 +97,7 @@ class MonitorViewModel(QObject):
         cpu_val = self._model.cpu
         self._cpu_usage = f"{cpu_val:.1f}%"
         self._cpu_history.append(cpu_val)
+        self._cpu_history_cache = list(self._cpu_history)
         self.cpuUsageChanged.emit()
         self.cpuHistoryChanged.emit()
 
@@ -102,14 +105,15 @@ class MonitorViewModel(QObject):
         """메모리 데이터를 표시용 문자열로 포맷팅하고 히스토리에 추가 (bytes -> GB 변환)"""
         mem = self._model.memory
         if mem:
-            used_gb = mem.get('used', 0) / 1024 / 1024 / 1024
-            total_gb = mem.get('total', 0) / 1024 / 1024 / 1024
+            used_gb = mem.get('used', 0) / (1024 ** 3)
+            total_gb = mem.get('total', 0) / (1024 ** 3)
             percent = mem.get('percent', 0)
             self._memory_usage = f"{used_gb:.1f} GB / {total_gb:.1f} GB ({percent:.1f}%)"
             self._memory_history.append(percent)
         else:
             self._memory_usage = "0.0 GB / 0.0 GB (0.0%)"
             self._memory_history.append(0.0)
+        self._memory_history_cache = list(self._memory_history)
         self.memoryUsageChanged.emit()
         self.memoryHistoryChanged.emit()
 
